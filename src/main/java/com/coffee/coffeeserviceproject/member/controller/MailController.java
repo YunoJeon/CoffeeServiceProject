@@ -14,9 +14,9 @@ public class MailController {
   private final MailService mailService;
 
   @GetMapping("/verify")
-  public ResponseEntity<String> verify(@RequestParam String email) {
+  public ResponseEntity<String> verify(@RequestParam String token) {
 
-    mailService.verifyEmail(email);
+    mailService.verifyEmail(token);
 
     return ResponseEntity.ok("이메일 인증이 완료되었습니다.");
   }

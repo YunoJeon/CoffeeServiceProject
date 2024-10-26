@@ -50,7 +50,7 @@ public class MemberController {
     return ResponseEntity.ok(memberDto);
   }
 
-  @PatchMapping("/update")
+  @PatchMapping("/me")
   public ResponseEntity<Void> updateMember(@RequestHeader("AUTH-TOKEN") String token,
       @RequestBody @Valid MemberUpdateDto memberUpdateDto) {
 

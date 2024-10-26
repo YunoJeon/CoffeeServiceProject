@@ -16,7 +16,6 @@ import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.util.JwtUtil;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,8 +31,7 @@ public class MemberService {
 
   public void addMember(MemberDto memberDto) {
 
-    Optional<Member> optionalMember = memberRepository.findByEmail(memberDto.getEmail());
-    if (optionalMember.isPresent()) {
+    if (memberRepository.findByEmail(memberDto.getEmail()).isPresent()) {
       throw new CustomException(ALREADY_EXISTS_USER);
     }
 
