@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +31,9 @@ class MailServiceTest {
   @Mock
   private MemberRepository memberRepository;
 
+  @Mock
+  private JwtProvider jwtProvider;
+
   @InjectMocks
   private MailService mailService;
 
@@ -37,9 +41,11 @@ class MailServiceTest {
   void send_Email() {
     // given
     String email = "@coffee@gmail.com";
+    String token = jwtProvider.generateToken(email);
+
     String subject = "C.R 회원가입 인증 이메일";
     String text = "회원가입을 위한 인증을 완료하려면 아래 링크를 클릭해 주세요: \n" +
-        "http://localhost:8080/verify?email=" + email;
+        "http://localhost:8080/verify?token=" + token;
     // when
     Member member = Member.builder()
         .email(email)
@@ -84,9 +90,12 @@ class MailServiceTest {
         .email(email)
         .build();
 
+    String token = jwtProvider.generateToken(email);
+
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(newMember);
     when(memberRepository.findByEmail(email)).thenReturn(Optional.of(newMember));
     // when
-    mailService.verifyEmail(email);
+    mailService.verifyEmail(token);
     // then
     assertNotNull(newMember.getCertificationAt());
     verify(memberRepository).save(newMember);

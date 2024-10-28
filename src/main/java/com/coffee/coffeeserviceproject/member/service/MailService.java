@@ -7,7 +7,7 @@ import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_FOUND_US
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -21,7 +21,7 @@ public class MailService {
   private final JavaMailSender mailSender;
 
   private final MemberRepository memberRepository;
-  private final JwtUtil jwtUtil;
+  private final JwtProvider jwtProvider;
 
   public void sendEmail(String email) {
 
@@ -31,7 +31,7 @@ public class MailService {
       throw new CustomException(ALREADY_VERIFY);
     }
 
-    String token = jwtUtil.generateToken(email);
+    String token = jwtProvider.generateToken(email);
     String subject = "C.R 회원가입 인증 이메일";
     String text = "회원가입을 위한 인증을 완료하려면 아래 링크를 클릭해 주세요: \n" +
         "http://localhost:8080/verify?token=" + token;
@@ -50,7 +50,7 @@ public class MailService {
 
   public void verifyEmail(String token) {
 
-    String email = jwtUtil.getMemberFromEmail(token).getEmail();
+    String email = jwtProvider.getMemberFromEmail(token).getEmail();
 
     Member member = memberRepository.findByEmail(email).orElseThrow(() -> new CustomException(NOT_FOUND_USER));
 

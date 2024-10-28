@@ -29,7 +29,7 @@ public class RoasterController {
     return ResponseEntity.ok().build();
   }
 
-  @PatchMapping("/roaster/update")
+  @PatchMapping("/roaster/me")
   public ResponseEntity<Void> updateRoaster(@RequestHeader("AUTH-TOKEN") String token,
       @RequestBody @Valid RoasterUpdateDto roasterUpdateDto) {
 

@@ -1,4 +1,4 @@
-package com.coffee.coffeeserviceproject.util;
+package com.coffee.coffeeserviceproject.configuration;
 
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_FOUND_USER;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_MATCH_TOKEN;
@@ -21,10 +21,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class JwtUtil {
+public class JwtProvider {
 
   @Value("${jwt.secret}")
-  private String SECRET_KEY;
+  private String secretKey;
 
   private final MemberRepository memberRepository;
 
@@ -36,12 +36,12 @@ public class JwtUtil {
         .withSubject(email)
         .withIssuedAt(new Date())
         .withExpiresAt(expirationTime)
-        .sign(Algorithm.HMAC256(SECRET_KEY));
+        .sign(Algorithm.HMAC256(secretKey));
   }
 
   public String validateToken(String token) {
 
-    JWTVerifier verifier = JWT.require(Algorithm.HMAC256(SECRET_KEY)).build();
+    JWTVerifier verifier = JWT.require(Algorithm.HMAC256(secretKey)).build();
     DecodedJWT decodedJWT = verifier.verify(token);
 
     return decodedJWT.getSubject();
