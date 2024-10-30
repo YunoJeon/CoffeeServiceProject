@@ -15,7 +15,11 @@ public enum ErrorCode {
   NOT_MATCH_TOKEN("NOT_MATCH_TOKEN", "토큰이 만료되었거나, 일치하지 않습니다."),
   INTERNAL_SEVER_ERROR("INTERNAL_SEVER_ERROR", "서버 내부 오류가 발생했습니다."),
   WRONG_PASSWORD("WRONG_PASSWORD", "비밀번호가 일치하지 않습니다."),
-  ALREADY_REGISTERED_ROASTER("ALREADY_REGISTERED_ROASTER", "이미 로스터 정보가 등록되어 있습니다.")
+  ALREADY_REGISTERED_ROASTER("ALREADY_REGISTERED_ROASTER", "이미 로스터 정보가 등록되어 있습니다."),
+  PURCHASE_STATUS_REQUIRED("PURCHASE_STATUS_REQUIRED", "로스터는 판매상태 입력이 필수입니다."),
+  PRICE_REQUIRED("PRICE_REQUIRED", "판매상태가 등록된 경우 가격은 필수 입력입니다."),
+  NOT_FOUND_BEAN("NOT_FOUND_BEAN", "원두정보를 찾을수 없습니다."),
+  NOT_PERMISSION("NOT_PERMISSION", "승인되지 않은 요청입니다.")
   ;
 
   private final String code;

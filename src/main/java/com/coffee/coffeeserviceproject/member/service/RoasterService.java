@@ -4,16 +4,19 @@ import static com.coffee.coffeeserviceproject.common.type.ErrorCode.ALREADY_REGI
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.WRONG_PASSWORD;
 import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 
+import com.coffee.coffeeserviceproject.bean.entity.Bean;
+import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
 import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.dto.RoasterUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
-import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,11 +28,15 @@ public class RoasterService {
 
   private final RoasterRepository roasterRepository;
 
-  private final JwtUtil jwtUtil;
+  private final JwtProvider jwtProvider;
+
+  private final SearchRepository searchRepository;
+
+  private final BeanRepository beanRepository;
 
   public void addRoaster(String token, RoasterDto roasterDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (member.getRole() == SELLER) {
       throw new CustomException(ALREADY_REGISTERED_ROASTER);
@@ -50,15 +57,23 @@ public class RoasterService {
         .build();
 
     member.setRole(SELLER);
-    member.setUpdatedAt(LocalDateTime.now());
 
     memberRepository.save(member);
     roasterRepository.save(roaster);
+
+    List<Bean> beanList = beanRepository.findByMemberId(member.getId());
+
+    for (Bean bean : beanList) {
+      searchRepository.findById(bean.getId()).ifPresent(searchBeanList -> {
+        searchBeanList.setRoasterName(roasterDto.getRoasterName());
+        searchRepository.save(searchBeanList);
+      });
+    }
   }
 
   public void updateRoaster(String token, RoasterUpdateDto roasterUpdateDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (!PasswordUtil.matches(roasterUpdateDto.getPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
