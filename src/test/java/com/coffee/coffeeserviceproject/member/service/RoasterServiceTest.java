@@ -81,7 +81,7 @@ class RoasterServiceTest {
 
     when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(roasterRepository.findByRoasterName(anyString())).thenReturn(Optional.empty());
-    when(beanRepository.findByMemberId(anyLong())).thenReturn(new ArrayList<>());
+    when(beanRepository.findAllByMemberId(anyLong())).thenReturn(new ArrayList<>());
     // when
     roasterService.addRoaster("token", roasterDto);
 

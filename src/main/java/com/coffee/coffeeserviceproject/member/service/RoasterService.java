@@ -65,7 +65,7 @@ public class RoasterService {
     memberRepository.save(member);
     roasterRepository.save(roaster);
 
-    List<Bean> beanList = beanRepository.findByMemberId(member.getId());
+    List<Bean> beanList = beanRepository.findAllByMemberId(member.getId());
 
     for (Bean bean : beanList) {
       SearchBeanList searchBeanList = searchRepository.findById(bean.getId())

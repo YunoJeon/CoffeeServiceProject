@@ -247,7 +247,7 @@ class MemberServiceTest {
     Long memberId = member.getId();
 
     when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
-    when(beanRepository.findByMemberId(memberId)).thenReturn(Collections.emptyList());
+    when(beanRepository.findAllByMemberId(memberId)).thenReturn(Collections.emptyList());
 
     MemberDeleteDto deleteDto = MemberDeleteDto.builder()
         .confirmPassword(password)

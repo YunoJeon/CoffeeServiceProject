@@ -153,8 +153,7 @@ public class MemberService {
       roasterRepository.delete(member.getRoaster());
     }
 
-    List<Bean> beanList = beanRepository.findByMemberId(member.getId());
-
+    List<Bean> beanList = beanRepository.findAllByMemberId(member.getId());
 
     if (!beanList.isEmpty()) {
       beanRepository.deleteAll(beanList);

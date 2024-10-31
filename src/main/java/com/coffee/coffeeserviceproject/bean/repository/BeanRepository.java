@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BeanRepository extends JpaRepository<Bean, Long> {
 
-  List<Bean> findByMemberId(Long id);
+  List<Bean> findAllByMemberId(Long id);
 
   Page<Bean> findAllByOrderByIdDesc(Pageable pageable);
 
