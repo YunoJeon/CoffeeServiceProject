@@ -1,5 +1,6 @@
 package com.coffee.coffeeserviceproject.bean.dto;
 
+import com.coffee.coffeeserviceproject.bean.entity.Bean;
 import com.coffee.coffeeserviceproject.bean.type.PurchaseStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
@@ -53,4 +54,29 @@ public class BeanDto {
   private String memberName;
 
   private Double averageScore;
+
+  public static BeanDto fromEntity(Bean bean) {
+
+    return BeanDto.builder()
+        .memberName(bean.getMember().getMemberName())
+        .beanName(bean.getBeanName())
+        .beanState(bean.getBeanState())
+        .beanRegion(bean.getBeanRegion())
+        .beanFarm(bean.getBeanFarm())
+        .beanVariety(bean.getBeanVariety())
+        .altitude(bean.getAltitude())
+        .process(bean.getProcess())
+        .grade(bean.getGrade())
+        .roastingLevel(bean.getRoastingLevel())
+        .roastingDate(bean.getRoastingDate())
+        .cupNote(bean.getCupNote())
+        .espressoRecipe(bean.getEspressoRecipe())
+        .filterRecipe(bean.getFilterRecipe())
+        .milkPairing(bean.getMilkPairing())
+        .signatureVariation(bean.getSignatureVariation())
+        .price(bean.getPrice())
+        .purchaseStatus(bean.getPurchaseStatus())
+        .averageScore(bean.getAverageScore())
+        .build();
+  }
 }

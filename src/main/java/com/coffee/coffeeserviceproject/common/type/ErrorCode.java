@@ -19,7 +19,8 @@ public enum ErrorCode {
   PURCHASE_STATUS_REQUIRED("PURCHASE_STATUS_REQUIRED", "로스터는 판매상태 입력이 필수입니다."),
   PRICE_REQUIRED("PRICE_REQUIRED", "판매상태가 등록된 경우 가격은 필수 입력입니다."),
   NOT_FOUND_BEAN("NOT_FOUND_BEAN", "원두정보를 찾을수 없습니다."),
-  NOT_PERMISSION("NOT_PERMISSION", "승인되지 않은 요청입니다.")
+  NOT_PERMISSION("NOT_PERMISSION", "승인되지 않은 요청입니다."),
+  ROASTER_REGISTRATION_FAILED("ROASTER_REGISTRATION_FAILED", "로스터 등록에 실패하였습니다. 고객센터에 문의해 주세요")
   ;
 
   private final String code;

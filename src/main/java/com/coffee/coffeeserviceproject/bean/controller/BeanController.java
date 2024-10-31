@@ -5,10 +5,10 @@ import com.coffee.coffeeserviceproject.bean.dto.BeanListDto;
 import com.coffee.coffeeserviceproject.bean.dto.BeanUpdateDto;
 import com.coffee.coffeeserviceproject.bean.service.BeanService;
 import com.coffee.coffeeserviceproject.bean.type.PurchaseStatus;
+import com.coffee.coffeeserviceproject.common.model.ListResponseDto;
 import com.coffee.coffeeserviceproject.member.type.RoleType;
 import jakarta.validation.Valid;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,19 +41,20 @@ public class BeanController {
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
-  @GetMapping("/list")
-  public ResponseEntity<Map<String, Object>> getBeanList(Pageable pageable,
+  @GetMapping
+  public ResponseEntity<ListResponseDto<List<BeanListDto>>> getBeanList(Pageable pageable,
       @RequestParam(required = false) RoleType role,
       @RequestParam(required = false) PurchaseStatus purchaseStatus) {
 
     Page<BeanListDto> beanListDtoPage = beanService.getBeanList(pageable, role, purchaseStatus);
 
-    Map<String, Object> response = new HashMap<>();
-    response.put("data", beanListDtoPage.getContent());
-    response.put("totalElements", beanListDtoPage.getTotalElements());
-    response.put("totalPages", beanListDtoPage.getTotalPages());
+    ListResponseDto<List<BeanListDto>> responseDto = new ListResponseDto<>(
+        beanListDtoPage.getContent(),
+        beanListDtoPage.getTotalElements(),
+        beanListDtoPage.getTotalPages()
+    );
 
-    return ResponseEntity.ok(response);
+    return ResponseEntity.ok(responseDto);
   }
 
   @GetMapping("/{id}/info")

@@ -71,4 +71,11 @@ public class Bean {
   public void onUpdate() {
     this.updatedAt = LocalDateTime.now();
   }
+
+  public String getRoasterName() {
+    if (member != null && member.getRoaster() != null) {
+      return member.getRoaster().getRoasterName();
+    }
+    return null;
+  }
 }

@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +35,7 @@ public class BeanService {
 
   private final SearchRepository searchRepository;
 
+  @Transactional
   public void addBean(BeanDto beanDto, String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -96,7 +98,9 @@ public class BeanService {
     searchRepository.save(searchBeanList);
   }
 
-  public Page<BeanListDto> getBeanList(Pageable pageable, RoleType role, PurchaseStatus purchaseStatus) {
+  @Transactional(readOnly = true)
+  public Page<BeanListDto> getBeanList(Pageable pageable, RoleType role,
+      PurchaseStatus purchaseStatus) {
 
     Page<Bean> beanList;
 
@@ -104,54 +108,30 @@ public class BeanService {
       beanList = beanRepository.findAllByOrderByIdDesc(pageable);
     } else if (role == null) {
       beanList = beanRepository.findByPurchaseStatus(POSSIBLE, pageable);
-    } else if (purchaseStatus == null){
+    } else if (purchaseStatus == null) {
       beanList = beanRepository.findByMemberRole(SELLER, pageable);
     } else {
       beanList = beanRepository.findByMemberRoleAndPurchaseStatus(SELLER, POSSIBLE, pageable);
     }
 
-    return beanList.map(bean -> {
-      String roasterName = null;
-      if (bean.getMember().getRoaster() != null) {
-        roasterName = bean.getMember().getRoaster().getRoasterName();
-      }
-      return BeanListDto.builder()
-          .beanId(bean.getId())
-          .beanName(bean.getBeanName())
-          .averageScore(bean.getAverageScore())
-          .roasterName(roasterName)
-          .build();
-    });
+    return beanList.map(bean -> BeanListDto.builder()
+        .beanId(bean.getId())
+        .beanName(bean.getBeanName())
+        .averageScore(bean.getAverageScore())
+        .roasterName(bean.getRoasterName())
+        .build());
   }
 
+  @Transactional(readOnly = true)
   public BeanDto getBean(Long id) {
 
     Bean bean = beanRepository.findById(id)
         .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
 
-    return BeanDto.builder()
-        .memberName(bean.getMember().getMemberName())
-        .beanName(bean.getBeanName())
-        .beanState(bean.getBeanState())
-        .beanRegion(bean.getBeanRegion())
-        .beanFarm(bean.getBeanFarm())
-        .beanVariety(bean.getBeanVariety())
-        .altitude(bean.getAltitude())
-        .process(bean.getProcess())
-        .grade(bean.getGrade())
-        .roastingLevel(bean.getRoastingLevel())
-        .roastingDate(bean.getRoastingDate())
-        .cupNote(bean.getCupNote())
-        .espressoRecipe(bean.getEspressoRecipe())
-        .filterRecipe(bean.getFilterRecipe())
-        .milkPairing(bean.getMilkPairing())
-        .signatureVariation(bean.getSignatureVariation())
-        .price(bean.getPrice())
-        .purchaseStatus(bean.getPurchaseStatus())
-        .averageScore(bean.getAverageScore())
-        .build();
+    return BeanDto.fromEntity(bean);
   }
 
+  @Transactional
   public void updateBean(Long id, BeanUpdateDto beanUpdateDto, String token) {
 
     Bean bean = beanRepository.findById(id)
@@ -235,11 +215,17 @@ public class BeanService {
       if (beanUpdateDto.getPurchaseStatus() != null) {
         bean.setPurchaseStatus(beanUpdateDto.getPurchaseStatus());
       }
+    } else {
+      if (beanUpdateDto.getPrice() != null || beanUpdateDto.getPurchaseStatus() != null) {
+        throw new CustomException(NOT_PERMISSION);
+      }
     }
+
     beanRepository.save(bean);
     searchRepository.save(searchBeanList);
   }
 
+  @Transactional
   public void deleteBean(Long id, String token) {
 
     Bean bean = beanRepository.findById(id)
