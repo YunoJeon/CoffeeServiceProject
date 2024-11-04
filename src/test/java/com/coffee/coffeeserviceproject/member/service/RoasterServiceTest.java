@@ -12,17 +12,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.elasticsearch.service.SearchService;
 import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.dto.RoasterUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
-import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
-import java.util.ArrayList;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,10 +44,10 @@ class RoasterServiceTest {
   private RoasterRepository roasterRepository;
 
   @Mock
-  private BeanRepository beanRepository;
+  private JwtProvider jwtProvider;
 
   @Mock
-  private JwtProvider jwtProvider;
+  private SearchService searchService;
 
   private Member member;
 
@@ -81,7 +80,6 @@ class RoasterServiceTest {
 
     when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(roasterRepository.findByRoasterName(anyString())).thenReturn(Optional.empty());
-    when(beanRepository.findAllByMemberId(anyLong())).thenReturn(new ArrayList<>());
     // when
     roasterService.addRoaster("token", roasterDto);
 
@@ -94,6 +92,7 @@ class RoasterServiceTest {
     assertEquals(member, roaster.getMember());
     verify(memberRepository).save(member);
     verify(roasterRepository).save(roaster);
+    verify(searchService).updateSearchDataForRoaster("로스터명1", member.getId());
   }
 
   @Test

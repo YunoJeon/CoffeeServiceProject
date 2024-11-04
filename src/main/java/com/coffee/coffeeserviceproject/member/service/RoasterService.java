@@ -1,16 +1,12 @@
 package com.coffee.coffeeserviceproject.member.service;
 
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.ALREADY_REGISTERED_ROASTER;
-import static com.coffee.coffeeserviceproject.common.type.ErrorCode.ROASTER_REGISTRATION_FAILED;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.WRONG_PASSWORD;
 import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 
-import com.coffee.coffeeserviceproject.bean.entity.Bean;
-import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
 import com.coffee.coffeeserviceproject.configuration.JwtProvider;
-import com.coffee.coffeeserviceproject.elasticsearch.document.SearchBeanList;
-import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
+import com.coffee.coffeeserviceproject.elasticsearch.service.SearchService;
 import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.dto.RoasterUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
@@ -18,7 +14,6 @@ import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +28,7 @@ public class RoasterService {
 
   private final JwtProvider jwtProvider;
 
-  private final SearchRepository searchRepository;
-
-  private final BeanRepository beanRepository;
+  private final SearchService searchService;
 
   @Transactional
   public void addRoaster(String token, RoasterDto roasterDto) {
@@ -65,15 +58,7 @@ public class RoasterService {
     memberRepository.save(member);
     roasterRepository.save(roaster);
 
-    List<Bean> beanList = beanRepository.findAllByMemberId(member.getId());
-
-    for (Bean bean : beanList) {
-      SearchBeanList searchBeanList = searchRepository.findById(bean.getId())
-          .orElseThrow(() -> new CustomException(ROASTER_REGISTRATION_FAILED));
-
-      searchBeanList.setRoasterName(roasterDto.getRoasterName());
-      searchRepository.save(searchBeanList);
-    }
+    searchService.updateSearchDataForRoaster(roasterDto.getRoasterName(), member.getId());
   }
 
   public void updateRoaster(String token, RoasterUpdateDto roasterUpdateDto) {

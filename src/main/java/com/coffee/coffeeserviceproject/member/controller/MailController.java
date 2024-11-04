@@ -13,7 +13,7 @@ public class MailController {
 
   private final MailService mailService;
 
-  @GetMapping("/verify")
+  @GetMapping("/verification")
   public ResponseEntity<String> verify(@RequestParam String token) {
 
     mailService.verifyEmail(token);
