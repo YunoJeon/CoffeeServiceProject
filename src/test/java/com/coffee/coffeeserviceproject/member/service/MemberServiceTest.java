@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
 import com.coffee.coffeeserviceproject.member.dto.MemberDeleteDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberDto;
@@ -23,8 +24,9 @@ import com.coffee.coffeeserviceproject.member.dto.MemberUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
+import java.util.Collections;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,10 +45,13 @@ class MemberServiceTest {
   private MemberRepository memberRepository;
 
   @Mock
+  private BeanRepository beanRepository;
+
+  @Mock
   private MailService mailService;
 
   @Mock
-  private JwtUtil jwtUtil;
+  private JwtProvider jwtProvider;
 
   private Member member;
   private MemberDto memberDto;
@@ -107,7 +112,7 @@ class MemberServiceTest {
     when(memberRepository.findByEmail(memberDto.getEmail()))
         .thenReturn(Optional.of(member));
 
-    when(jwtUtil.generateToken(member.getEmail())).thenReturn("token");
+    when(jwtProvider.generateToken(member.getEmail())).thenReturn("token");
     // when
     String token = memberService.login(memberDto.getEmail(), memberDto.getPassword());
     // then
@@ -142,7 +147,7 @@ class MemberServiceTest {
   @Test
   void getMember_Success() {
     // given
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     // when
     MemberDto result = memberService.getMember("token");
     // then
@@ -156,7 +161,7 @@ class MemberServiceTest {
   @Test
   void getMember_Failure_InvalidToken() {
     // given
-    when(jwtUtil.getMemberFromEmail(anyString())).thenThrow(new CustomException(NOT_MATCH_TOKEN));
+    when(jwtProvider.getMemberFromEmail(anyString())).thenThrow(new CustomException(NOT_MATCH_TOKEN));
     // when
     CustomException e = assertThrows(CustomException.class,
         () -> memberService.getMember("InvalidToken"));
@@ -167,7 +172,7 @@ class MemberServiceTest {
   @Test
   void getMember_Failure_UserNotFound() {
     // given
-    when(jwtUtil.getMemberFromEmail(anyString())).thenThrow(new CustomException(NOT_FOUND_USER));
+    when(jwtProvider.getMemberFromEmail(anyString())).thenThrow(new CustomException(NOT_FOUND_USER));
     // when
     CustomException e = assertThrows(CustomException.class, () -> memberService.getMember("token"));
     // then
@@ -185,7 +190,7 @@ class MemberServiceTest {
     member.setRole(SELLER);
     member.setRoaster(roaster);
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     // when
     MemberDto result = memberService.getMember("token");
     // then
@@ -202,7 +207,7 @@ class MemberServiceTest {
     String hashPassword = PasswordUtil.hashPassword(password);
     member.setPassword(hashPassword);
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(memberRepository.existsByEmail(anyString())).thenReturn(false);
 
     MemberUpdateDto memberUpdateDto = MemberUpdateDto.builder()
@@ -220,7 +225,7 @@ class MemberServiceTest {
   @Test
   void updateMember_Failure_WrongPassword() {
     // given
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
 
     MemberUpdateDto memberUpdateDto = MemberUpdateDto.builder()
         .currentPassword("wrongPassword")
@@ -239,7 +244,10 @@ class MemberServiceTest {
     String hashPassword = PasswordUtil.hashPassword(password);
     member.setPassword(hashPassword);
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    Long memberId = member.getId();
+
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
+    when(beanRepository.findAllByMemberId(memberId)).thenReturn(Collections.emptyList());
 
     MemberDeleteDto deleteDto = MemberDeleteDto.builder()
         .confirmPassword(password)
@@ -253,7 +261,7 @@ class MemberServiceTest {
   @Test
   void deleteMember_Failure_WrongPassword() {
     // given
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
 
     MemberDeleteDto memberDeleteDto = MemberDeleteDto.builder()
         .confirmPassword("wrongPassword")

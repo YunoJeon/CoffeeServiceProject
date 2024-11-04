@@ -6,7 +6,10 @@ import static com.coffee.coffeeserviceproject.common.type.ErrorCode.WRONG_PASSWO
 import static com.coffee.coffeeserviceproject.member.type.RoleType.BUYER;
 import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 
+import com.coffee.coffeeserviceproject.bean.entity.Bean;
+import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
 import com.coffee.coffeeserviceproject.member.dto.MemberDeleteDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberUpdateDto;
@@ -14,8 +17,11 @@ import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
+import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +33,13 @@ public class MemberService {
 
   private final MailService mailService;
 
-  private final JwtUtil jwtUtil;
+  private final JwtProvider jwtProvider;
+
+  private final BeanRepository beanRepository;
+
+  private final SearchRepository searchRepository;
+
+  private final RoasterRepository roasterRepository;
 
   public void addMember(MemberDto memberDto) {
 
@@ -60,12 +72,12 @@ public class MemberService {
       throw new CustomException(LOGIN_ERROR);
     }
 
-    return jwtUtil.generateToken(email);
+    return jwtProvider.generateToken(email);
   }
 
   public MemberDto getMember(String token) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     MemberDto memberDto = MemberDto.builder()
         .memberName(member.getMemberName())
@@ -93,7 +105,7 @@ public class MemberService {
 
   public void updateMember(String token, MemberUpdateDto memberUpdateDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (!PasswordUtil.matches(memberUpdateDto.getCurrentPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
@@ -131,10 +143,24 @@ public class MemberService {
 
   public void deleteMember(String token, MemberDeleteDto memberDeleteDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (!PasswordUtil.matches(memberDeleteDto.getConfirmPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
+    }
+
+    if (member.getRole() == SELLER) {
+      roasterRepository.delete(member.getRoaster());
+    }
+
+    List<Bean> beanList = beanRepository.findAllByMemberId(member.getId());
+
+    if (!beanList.isEmpty()) {
+      beanRepository.deleteAll(beanList);
+
+      List<Long> searchBeanIds = beanList.stream().map(Bean::getId).collect(Collectors.toList());
+
+      searchRepository.deleteAllByBeanIdIn(searchBeanIds);
     }
 
     memberRepository.delete(member);

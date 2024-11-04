@@ -5,17 +5,18 @@ import static com.coffee.coffeeserviceproject.common.type.ErrorCode.WRONG_PASSWO
 import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.elasticsearch.service.SearchService;
 import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.dto.RoasterUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
-import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,11 +26,14 @@ public class RoasterService {
 
   private final RoasterRepository roasterRepository;
 
-  private final JwtUtil jwtUtil;
+  private final JwtProvider jwtProvider;
 
+  private final SearchService searchService;
+
+  @Transactional
   public void addRoaster(String token, RoasterDto roasterDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (member.getRole() == SELLER) {
       throw new CustomException(ALREADY_REGISTERED_ROASTER);
@@ -50,15 +54,16 @@ public class RoasterService {
         .build();
 
     member.setRole(SELLER);
-    member.setUpdatedAt(LocalDateTime.now());
 
     memberRepository.save(member);
     roasterRepository.save(roaster);
+
+    searchService.updateSearchDataForRoaster(roasterDto.getRoasterName(), member.getId());
   }
 
   public void updateRoaster(String token, RoasterUpdateDto roasterUpdateDto) {
 
-    Member member = jwtUtil.getMemberFromEmail(token);
+    Member member = jwtProvider.getMemberFromEmail(token);
 
     if (!PasswordUtil.matches(roasterUpdateDto.getPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);

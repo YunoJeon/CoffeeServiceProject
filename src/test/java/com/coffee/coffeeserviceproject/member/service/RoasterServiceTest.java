@@ -13,13 +13,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.elasticsearch.service.SearchService;
 import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.coffee.coffeeserviceproject.member.dto.RoasterUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
-import com.coffee.coffeeserviceproject.util.JwtUtil;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,10 @@ class RoasterServiceTest {
   private RoasterRepository roasterRepository;
 
   @Mock
-  private JwtUtil jwtUtil;
+  private JwtProvider jwtProvider;
+
+  @Mock
+  private SearchService searchService;
 
   private Member member;
 
@@ -74,7 +78,7 @@ class RoasterServiceTest {
         .officeAddress("우리의주소")
         .build();
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(roasterRepository.findByRoasterName(anyString())).thenReturn(Optional.empty());
     // when
     roasterService.addRoaster("token", roasterDto);
@@ -88,6 +92,7 @@ class RoasterServiceTest {
     assertEquals(member, roaster.getMember());
     verify(memberRepository).save(member);
     verify(roasterRepository).save(roaster);
+    verify(searchService).updateSearchDataForRoaster("로스터명1", member.getId());
   }
 
   @Test
@@ -97,7 +102,7 @@ class RoasterServiceTest {
 
     RoasterDto roasterDto = RoasterDto.builder().build();
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     // when
     CustomException e = assertThrows(CustomException.class,
         () -> roasterService.addRoaster("token", roasterDto));
@@ -114,7 +119,7 @@ class RoasterServiceTest {
         .roasterName("로스터명")
         .build();
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(roasterRepository.findByRoasterName(roasterDto.getRoasterName())).thenReturn(
         Optional.of(roaster));
     // when
@@ -138,7 +143,7 @@ class RoasterServiceTest {
         .password(password)
         .build();
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     when(roasterRepository.findByMemberId(anyLong())).thenReturn(roaster);
     // when
     roasterService.updateRoaster("token", roasterUpdateDto);
@@ -154,7 +159,7 @@ class RoasterServiceTest {
         .password("wrong password")
         .build();
 
-    when(jwtUtil.getMemberFromEmail(anyString())).thenReturn(member);
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
     // when
     CustomException e = assertThrows(CustomException.class,
         () -> roasterService.updateRoaster("token", roasterUpdateDto));
