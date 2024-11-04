@@ -20,7 +20,18 @@ public enum ErrorCode {
   PRICE_REQUIRED("PRICE_REQUIRED", "판매상태가 등록된 경우 가격은 필수 입력입니다."),
   NOT_FOUND_BEAN("NOT_FOUND_BEAN", "원두정보를 찾을수 없습니다."),
   NOT_PERMISSION("NOT_PERMISSION", "승인되지 않은 요청입니다."),
-  ROASTER_REGISTRATION_FAILED("ROASTER_REGISTRATION_FAILED", "로스터 등록에 실패하였습니다. 고객센터에 문의해 주세요")
+  ROASTER_REGISTRATION_FAILED("ROASTER_REGISTRATION_FAILED", "로스터 등록에 실패하였습니다. 고객센터에 문의해 주세요"),
+  NOT_AVAILABLE_PURCHASE("NOT_AVAILABLE_PURCHASE", "구매가 불가능한 상품입니다."),
+  MAX_QUANTITY("MAX_QUANTITY", "최대수량은 100개 까지 입니다"),
+  NOT_FOUND_CART("NOT_FOUND_CART", "장바구니 정보가 없습니다."),
+  PAYMENT_ERROR("PAYMENT_ERROR", "결제 처리 중 오류가 발생하였습니다."),
+  PRICE_CHANGE("PRICE_CHANGE", "상품 가격이 변경되었습니다."),
+  NOT_FOUND_ORDER("NOT_FOUND_ORDER", "해당 주문을 찾을 수 없습니다."),
+  INVALID_AMOUNT("INVALID_AMOUNT", "주문 금액이 일치하지 않습니다."),
+  INVALID_STATUS("INVALID_STATUS", "잘못된 요청입니다."),
+  FAILURE_CANCEL("FAILURE_CANCEL", "결제 취소에 실패하였습니다."),
+  SAME_ROASTER("SAME_ROASTER", "동일한 로스터의 원두만 주문이 가능합니다."),
+  NOT_FOUND_ROASTER("NOT_FOUND_ROASTER", "로스터를 찾지 못했습니다.")
   ;
 
   private final String code;
