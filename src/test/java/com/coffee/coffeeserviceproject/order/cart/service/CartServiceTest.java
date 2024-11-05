@@ -245,6 +245,7 @@ class CartServiceTest {
     cart.setQuantity(3);
     cart.setRequestNote("fine 분쇄로 주세요");
     cart.setMember(member);
+    cart.setBean(bean);
 
     CartUpdateDto cartUpdateDto = new CartUpdateDto();
     cartUpdateDto.setQuantity(5);
@@ -272,6 +273,7 @@ class CartServiceTest {
     cart.setQuantity(3);
     cart.setRequestNote("fine 분쇄로 주세요");
     cart.setMember(member);
+    cart.setBean(bean);
 
     CartUpdateDto cartUpdateDto = new CartUpdateDto();
     cartUpdateDto.setRequestNote("홀빈으로 주세요");
@@ -298,6 +300,7 @@ class CartServiceTest {
     cart.setQuantity(3);
     cart.setRequestNote("fine 분쇄로 주세요");
     cart.setMember(member);
+    cart.setBean(bean);
 
     CartUpdateDto cartUpdateDto = new CartUpdateDto();
     cartUpdateDto.setQuantity(5);
