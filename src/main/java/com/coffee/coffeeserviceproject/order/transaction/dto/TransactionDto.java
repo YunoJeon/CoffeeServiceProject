@@ -16,5 +16,5 @@ public class TransactionDto {
 
   private PaymentMethodType paymentMethod;
 
-  List<Item> items;
+  private List<Item> items;
 }

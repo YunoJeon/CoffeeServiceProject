@@ -40,7 +40,7 @@ public class TransactionController {
   }
 
   @PostMapping("/verification/{imp_uid}")
-  public IamportResponse<Payment> validateImp(@PathVariable String imp_uid) {
+  public IamportResponse<Payment> validatePayment(@PathVariable String imp_uid) {
 
     return transactionService.validateOrder(imp_uid);
   }

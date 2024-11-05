@@ -20,6 +20,7 @@ import com.coffee.coffeeserviceproject.order.cart.repository.CartRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,9 @@ public class CartService {
 
   private final BeanRepository beanRepository;
 
+  private static final int MAX_QUANTITY_LIMIT = 100;
+
+  @Transactional
   public void addCart(Long beanId, CartDto cartDto, String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -47,13 +51,13 @@ public class CartService {
     int totalQuantity =
         (existingCart != null ? existingCart.getQuantity() : 0) + cartDto.getQuantity();
 
-    if (totalQuantity > 100) {
+    if (totalQuantity > MAX_QUANTITY_LIMIT) {
       throw new CustomException(MAX_QUANTITY);
     }
 
     if (existingCart != null) {
 
-      existingCart.setQuantity(existingCart.getQuantity() + cartDto.getQuantity());
+      existingCart.setQuantity(totalQuantity);
 
       cartRepository.save(existingCart);
 
@@ -65,6 +69,7 @@ public class CartService {
     }
   }
 
+  @Transactional(readOnly = true)
   public List<CartListDto> getCart(String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -76,11 +81,18 @@ public class CartService {
         .toList();
   }
 
+  @Transactional
   public void updateCart(Long id, CartUpdateDto cartUpdateDto, String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
 
     Cart cart = cartRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_CART));
+
+    Bean bean = cart.getBean();
+
+    if (bean.getPurchaseStatus() == IMPOSSIBLE || bean.getPurchaseStatus() == null) {
+      throw new CustomException(NOT_AVAILABLE_PURCHASE);
+    }
 
     if (!member.equals(cart.getMember())) {
       throw new CustomException(NOT_PERMISSION);
@@ -96,6 +108,7 @@ public class CartService {
     cartRepository.save(cart);
   }
 
+  @Transactional
   public void deleteCart(Long id, String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
