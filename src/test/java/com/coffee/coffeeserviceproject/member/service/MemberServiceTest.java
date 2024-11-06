@@ -18,13 +18,15 @@ import static org.mockito.Mockito.when;
 
 import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.favorite.repository.FavoriteRepository;
 import com.coffee.coffeeserviceproject.member.dto.MemberDeleteDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberUpdateDto;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
-import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
 import java.util.Collections;
 import java.util.Optional;
@@ -52,6 +54,12 @@ class MemberServiceTest {
 
   @Mock
   private JwtProvider jwtProvider;
+
+  @Mock
+  private ReviewRepository reviewRepository;
+
+  @Mock
+  private FavoriteRepository favoriteRepository;
 
   private Member member;
   private MemberDto memberDto;
@@ -255,7 +263,9 @@ class MemberServiceTest {
     // when
     memberService.deleteMember("token", deleteDto);
     // then
-    verify(memberRepository).delete(any());
+    verify(memberRepository).deleteById(memberId);
+    verify(reviewRepository).deleteAllByMemberId(memberId);
+    verify(favoriteRepository).deleteAllByMemberId(memberId);
   }
 
   @Test
@@ -271,5 +281,7 @@ class MemberServiceTest {
         () -> memberService.deleteMember("token", memberDeleteDto));
     // then
     assertEquals(WRONG_PASSWORD, e.getErrorCode());
+    verify(memberRepository, never()).delete(any());
+    verify(reviewRepository, never()).deleteAllByMemberId(member.getId());
   }
 }

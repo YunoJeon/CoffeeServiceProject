@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,10 +23,13 @@ import com.coffee.coffeeserviceproject.bean.dto.BeanUpdateDto;
 import com.coffee.coffeeserviceproject.bean.entity.Bean;
 import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.elasticsearch.document.SearchBeanList;
 import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
+import com.coffee.coffeeserviceproject.favorite.repository.FavoriteRepository;
 import com.coffee.coffeeserviceproject.member.entity.Member;
-import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
+import com.coffee.coffeeserviceproject.review.service.ReviewService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +53,15 @@ class BeanServiceTest {
 
   @Mock
   private SearchRepository searchRepository;
+
+  @Mock
+  private ReviewRepository reviewRepository;
+
+  @Mock
+  private ReviewService reviewService;
+
+  @Mock
+  private FavoriteRepository favoriteRepository;
 
   @InjectMocks
   private BeanService beanService;
@@ -216,8 +229,11 @@ class BeanServiceTest {
     // when
     beanService.deleteBean(1L, "token");
     // then
-    verify(beanRepository).delete(bean);
-    verify(searchRepository).delete(searchBeanList);
+    verify(beanRepository).deleteById(bean.getId());
+    verify(searchRepository).deleteById(searchBeanList.getBeanId());
+    verify(reviewRepository).deleteAllByBeanId(bean.getId());
+    verify(reviewService).updateAverageScore(bean.getId());
+    verify(favoriteRepository).deleteAllByBeanId(bean.getId());
   }
 
   @Test
@@ -240,5 +256,6 @@ class BeanServiceTest {
         () -> beanService.deleteBean(1L, "token"));
     // then
     assertEquals(NOT_PERMISSION, e.getErrorCode());
+    verify(reviewRepository, never()).deleteAllByBeanId(bean.getId());
   }
 }
