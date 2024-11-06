@@ -39,16 +39,16 @@ public class TransactionController {
     return ResponseEntity.noContent().build();
   }
 
-  @PostMapping("/verification/{imp_uid}")
-  public IamportResponse<Payment> validatePayment(@PathVariable String imp_uid) {
+  @PostMapping("/verification/{impUid}")
+  public IamportResponse<Payment> validatePayment(@PathVariable String impUid) {
 
-    return transactionService.validateOrder(imp_uid);
+    return transactionService.validateOrder(impUid);
   }
 
-  @PostMapping("/cancel/{imp_uid}")
-  public IamportResponse<Payment> cancelOrder(@PathVariable String imp_uid) {
+  @PostMapping("/cancel/{impUid}")
+  public IamportResponse<Payment> cancelOrder(@PathVariable String impUid) {
 
-    return transactionService.cancelOrder(imp_uid);
+    return transactionService.cancelOrder(impUid);
   }
 
   @GetMapping("/buyer/purchase")
