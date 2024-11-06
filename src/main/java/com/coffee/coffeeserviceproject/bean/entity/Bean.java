@@ -78,4 +78,11 @@ public class Bean {
     }
     return null;
   }
+
+  public Long getRoasterId() {
+    if (member != null && member.getRoaster() != null) {
+      return member.getRoaster().getId();
+    }
+    return null;
+  }
 }
