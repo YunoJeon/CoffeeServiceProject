@@ -2,9 +2,12 @@ package com.coffee.coffeeserviceproject.favorite.service;
 
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.ALREADY_FAVORITE_BEAN;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_FOUND_BEAN;
+import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_FOUND_FAVORITE;
+import static com.coffee.coffeeserviceproject.common.type.ErrorCode.NOT_PERMISSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -87,7 +90,8 @@ class FavoriteServiceTest {
 
     when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
     when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
-    when(favoriteRepository.findByMemberAndBean(member, bean)).thenReturn(Optional.of(existsFavorite));
+    when(favoriteRepository.findByMemberAndBean(member, bean)).thenReturn(
+        Optional.of(existsFavorite));
     // when
     CustomException e = assertThrows(CustomException.class,
         () -> favoriteService.addFavorite(bean.getId(), token));
@@ -122,11 +126,68 @@ class FavoriteServiceTest {
 
     Page<Favorite> getFavoritePage = new PageImpl<>(List.of(favorite, favorite2));
     when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
-    when(favoriteRepository.findAllByMemberId(member.getId(), pageable)).thenReturn(getFavoritePage);
+    when(favoriteRepository.findAllByMemberId(member.getId(), pageable)).thenReturn(
+        getFavoritePage);
     // when
     Page<FavoriteDto> favoritePage = favoriteService.getFavoriteList(token, pageable);
     // then
     assertNotNull(favoritePage);
     assertEquals(2, favoritePage.getTotalElements());
+  }
+
+  @Test
+  void getFavorites_Success_EmptyList() {
+    // given
+    Pageable pageable = Pageable.ofSize(10);
+
+    Page<Favorite> getFavoritePage = new PageImpl<>(List.of());
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
+    when(favoriteRepository.findAllByMemberId(member.getId(), pageable)).thenReturn(
+        getFavoritePage);
+    // when
+    Page<FavoriteDto> favoritePage = favoriteService.getFavoriteList(token, pageable);
+    // then
+    assertNotNull(favoritePage);
+    assertTrue(favoritePage.isEmpty());
+  }
+
+  @Test
+  void deleteFavorite_Success() {
+    // given
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
+    when(favoriteRepository.findById(favorite.getId())).thenReturn(Optional.of(favorite));
+    // when
+    favoriteService.deleteFavorite(favorite.getId(), token);
+    // then
+    verify(favoriteRepository).delete(favorite);
+  }
+
+  @Test
+  void deleteFavorite_Failure_NotFoundFavorite() {
+    // given
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
+    when(favoriteRepository.findById(favorite.getId())).thenReturn(Optional.empty());
+    // when
+    CustomException e = assertThrows(CustomException.class,
+        () -> favoriteService.deleteFavorite(favorite.getId(), token));
+    // then
+    assertEquals(NOT_FOUND_FAVORITE, e.getErrorCode());
+    verify(favoriteRepository, never()).delete(favorite);
+  }
+
+  @Test
+  void deleteFavorite_Failure_NotPermission() {
+    // given
+    Member anotherMember = new Member();
+    anotherMember.setId(2L);
+
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(anotherMember);
+    when(favoriteRepository.findById(favorite.getId())).thenReturn(Optional.of(favorite));
+    // when
+    CustomException e = assertThrows(CustomException.class,
+        () -> favoriteService.deleteFavorite(favorite.getId(), token));
+    // then
+    assertEquals(NOT_PERMISSION, e.getErrorCode());
+    verify(favoriteRepository, never()).delete(favorite);
   }
 }
