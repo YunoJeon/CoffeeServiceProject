@@ -188,6 +188,7 @@ public class MemberService {
   }
 
   @Async
+  @Transactional
   public void deleteBeanDataAsync(List<Long> beanIds) {
 
     final int BATCH_SIZE = 100;
@@ -206,6 +207,7 @@ public class MemberService {
   }
 
   @Async
+  @Transactional
   public void deleteMemberDataAsync(Long memberId) {
 
     reviewRepository.deleteAllByMemberId(memberId);

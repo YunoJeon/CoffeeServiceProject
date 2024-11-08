@@ -256,6 +256,7 @@ public class BeanService {
   }
 
   @Async
+  @Transactional
   public void deleteDataAsync(Long beanId) {
 
     searchRepository.deleteById(beanId);

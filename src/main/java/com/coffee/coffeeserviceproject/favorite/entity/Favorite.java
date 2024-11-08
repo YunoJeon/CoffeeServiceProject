@@ -32,9 +32,14 @@ public class Favorite {
   @JoinColumn(name = "bean_id", nullable = false)
   private Bean bean;
 
-  public static Favorite from(Member member, Bean bean) {
-    return Favorite.builder()
-        .member(member)
-        .bean(bean).build();
+  public Favorite(Member member, Bean bean) {
+
+    this.member = member;
+    this.bean = bean;
+  }
+
+  public static Favorite of(Member member, Bean bean) {
+
+    return new Favorite(member, bean);
   }
 }

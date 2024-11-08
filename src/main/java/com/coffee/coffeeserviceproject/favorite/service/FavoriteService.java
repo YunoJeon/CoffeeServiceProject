@@ -42,7 +42,7 @@ public class FavoriteService {
           throw new CustomException(ALREADY_FAVORITE_BEAN);
         });
 
-    Favorite favorite = Favorite.from(member, bean);
+    Favorite favorite = Favorite.of(member, bean);
 
     favoriteRepository.save(favorite);
   }
