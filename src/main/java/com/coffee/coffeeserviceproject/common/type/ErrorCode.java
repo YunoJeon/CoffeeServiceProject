@@ -31,7 +31,11 @@ public enum ErrorCode {
   INVALID_STATUS("INVALID_STATUS", "잘못된 요청입니다."),
   FAILURE_CANCEL("FAILURE_CANCEL", "결제 취소에 실패하였습니다."),
   SAME_ROASTER("SAME_ROASTER", "동일한 로스터의 원두만 주문이 가능합니다."),
-  NOT_FOUND_ROASTER("NOT_FOUND_ROASTER", "로스터를 찾지 못했습니다.")
+  NOT_FOUND_ROASTER("NOT_FOUND_ROASTER", "로스터를 찾지 못했습니다."),
+  SCORE_MULTIPLE_05("SCORE_MULTIPLE_0.5", "점수는 0.5 의 배수여야 합니다."),
+  NOT_FOUND_REVIEW("NOT_FOUND_REVIEW", "리뷰를 찾지 못했습니다."),
+  NOT_FOUND_FAVORITE("NOT_FOUND_FAVORITE", "즐겨찾기를 찾지 못했습니다."),
+  ALREADY_FAVORITE_BEAN("ALREADY_FAVORITE_BEAN", "이미 즐겨찾기가 되어있습니다.")
   ;
 
   private final String code;

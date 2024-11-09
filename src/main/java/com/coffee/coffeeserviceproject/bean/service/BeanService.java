@@ -17,11 +17,15 @@ import com.coffee.coffeeserviceproject.common.exception.CustomException;
 import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.elasticsearch.document.SearchBeanList;
 import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
+import com.coffee.coffeeserviceproject.favorite.repository.FavoriteRepository;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.type.RoleType;
+import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
+import com.coffee.coffeeserviceproject.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +38,12 @@ public class BeanService {
   private final JwtProvider jwtProvider;
 
   private final SearchRepository searchRepository;
+
+  private final ReviewRepository reviewRepository;
+
+  private final ReviewService reviewService;
+
+  private final FavoriteRepository favoriteRepository;
 
   @Transactional
   public void addBean(BeanDto beanDto, String token) {
@@ -231,7 +241,7 @@ public class BeanService {
     Bean bean = beanRepository.findById(id)
         .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
 
-    SearchBeanList searchBeanList = searchRepository.findById(bean.getId())
+    searchRepository.findById(id)
         .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -240,7 +250,18 @@ public class BeanService {
       throw new CustomException(NOT_PERMISSION);
     }
 
-    beanRepository.delete(bean);
-    searchRepository.delete(searchBeanList);
+    reviewService.updateAverageScore(id);
+
+    deleteDataAsync(id);
+  }
+
+  @Async
+  @Transactional
+  public void deleteDataAsync(Long beanId) {
+
+    searchRepository.deleteById(beanId);
+    favoriteRepository.deleteAllByBeanId(beanId);
+    reviewRepository.deleteAllByBeanId(beanId);
+    beanRepository.deleteById(beanId);
   }
 }

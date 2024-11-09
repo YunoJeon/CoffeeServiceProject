@@ -9,7 +9,9 @@ import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 import com.coffee.coffeeserviceproject.bean.entity.Bean;
 import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
 import com.coffee.coffeeserviceproject.common.exception.CustomException;
+import com.coffee.coffeeserviceproject.configuration.JwtProvider;
 import com.coffee.coffeeserviceproject.elasticsearch.repository.SearchRepository;
+import com.coffee.coffeeserviceproject.favorite.repository.FavoriteRepository;
 import com.coffee.coffeeserviceproject.member.dto.MemberDeleteDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberDto;
 import com.coffee.coffeeserviceproject.member.dto.MemberUpdateDto;
@@ -18,12 +20,15 @@ import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.entity.Roaster;
 import com.coffee.coffeeserviceproject.member.repository.MemberRepository;
 import com.coffee.coffeeserviceproject.member.repository.RoasterRepository;
-import com.coffee.coffeeserviceproject.configuration.JwtProvider;
+import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
+import com.coffee.coffeeserviceproject.review.service.ReviewService;
 import com.coffee.coffeeserviceproject.util.PasswordUtil;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,13 @@ public class MemberService {
 
   private final RoasterRepository roasterRepository;
 
+  private final ReviewRepository reviewRepository;
+
+  private final ReviewService reviewService;
+
+  private final FavoriteRepository favoriteRepository;
+
+  @Transactional
   public void addMember(MemberDto memberDto) {
 
     if (memberRepository.findByEmail(memberDto.getEmail()).isPresent()) {
@@ -63,6 +75,7 @@ public class MemberService {
     mailService.sendEmail(memberDto.getEmail());
   }
 
+  @Transactional
   public String login(String email, String password) {
 
     Member member = memberRepository.findByEmail(email).orElse(null);
@@ -75,6 +88,7 @@ public class MemberService {
     return jwtProvider.generateToken(email);
   }
 
+  @Transactional(readOnly = true)
   public MemberDto getMember(String token) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -103,6 +117,7 @@ public class MemberService {
     return memberDto;
   }
 
+  @Transactional
   public void updateMember(String token, MemberUpdateDto memberUpdateDto) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
@@ -141,9 +156,12 @@ public class MemberService {
     }
   }
 
+  @Transactional
   public void deleteMember(String token, MemberDeleteDto memberDeleteDto) {
 
     Member member = jwtProvider.getMemberFromEmail(token);
+
+    Long memberId = member.getId();
 
     if (!PasswordUtil.matches(memberDeleteDto.getConfirmPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
@@ -156,13 +174,44 @@ public class MemberService {
     List<Bean> beanList = beanRepository.findAllByMemberId(member.getId());
 
     if (!beanList.isEmpty()) {
+
       beanRepository.deleteAll(beanList);
 
-      List<Long> searchBeanIds = beanList.stream().map(Bean::getId).collect(Collectors.toList());
+      List<Long> beanIds = beanList.stream()
+          .map(Bean::getId)
+          .collect(Collectors.toList());
 
-      searchRepository.deleteAllByBeanIdIn(searchBeanIds);
+      deleteBeanDataAsync(beanIds);
     }
 
-    memberRepository.delete(member);
+    deleteMemberDataAsync(memberId);
+  }
+
+  @Async
+  @Transactional
+  public void deleteBeanDataAsync(List<Long> beanIds) {
+
+    final int BATCH_SIZE = 100;
+
+    for (int i = 0; i < beanIds.size(); i+= BATCH_SIZE) {
+
+      List<Long> batchBeanIds = beanIds.subList(i, Math.min(i + BATCH_SIZE, beanIds.size()));
+
+      for (Long beanId : batchBeanIds) {
+
+        reviewService.updateAverageScore(beanId);
+      }
+
+      searchRepository.deleteAllByBeanIdIn(batchBeanIds);
+    }
+  }
+
+  @Async
+  @Transactional
+  public void deleteMemberDataAsync(Long memberId) {
+
+    reviewRepository.deleteAllByMemberId(memberId);
+    favoriteRepository.deleteAllByMemberId(memberId);
+    memberRepository.deleteById(memberId);
   }
 }
