@@ -32,15 +32,11 @@ public class FavoriteService {
   @Transactional
   public void addFavorite(Long beanId, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Bean bean = beanRepository.findById(beanId)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    Bean bean = findByBeanIdFromBeanRepository(beanId);
 
-    favoriteRepository.findByMemberAndBean(member, bean)
-        .ifPresent(existsFavorite -> {
-          throw new CustomException(ALREADY_FAVORITE_BEAN);
-        });
+    findByMemberAndBeanFromFavoriteRepository(member, bean);
 
     Favorite favorite = Favorite.of(member, bean);
 
@@ -50,7 +46,7 @@ public class FavoriteService {
   @Transactional(readOnly = true)
   public Page<FavoriteDto> getFavoriteList(String token, Pageable pageable) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     Long memberId = member.getId();
 
@@ -62,17 +58,40 @@ public class FavoriteService {
   @Transactional
   public void deleteFavorite(Long id, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     Long memberId = member.getId();
 
-    Favorite favorite = favoriteRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_FAVORITE));
+    Favorite favorite = findByFavoriteIdFromFavoriteRepository(id);
 
     if (!memberId.equals(favorite.getMember().getId())) {
       throw new CustomException(NOT_PERMISSION);
     }
 
     favoriteRepository.delete(favorite);
+  }
+
+  private Member getMemberFromToken(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
+  }
+
+  private Bean findByBeanIdFromBeanRepository(Long id) {
+
+    return beanRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+  }
+
+  private void findByMemberAndBeanFromFavoriteRepository(Member member, Bean bean) {
+
+    favoriteRepository.findByMemberAndBean(member, bean)
+        .ifPresent(existsFavorite -> {
+          throw new CustomException(ALREADY_FAVORITE_BEAN);
+        });
+  }
+
+  private Favorite findByFavoriteIdFromFavoriteRepository(Long id) {
+
+    return favoriteRepository.findById(id)
+        .orElseThrow(() -> new CustomException(NOT_FOUND_FAVORITE));
   }
 }

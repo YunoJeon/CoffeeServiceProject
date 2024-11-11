@@ -22,12 +22,22 @@ import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.member.type.RoleType;
 import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
 import com.coffee.coffeeserviceproject.review.service.ReviewService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -45,32 +55,26 @@ public class BeanService {
 
   private final FavoriteRepository favoriteRepository;
 
+  private final RedisTemplate<String, String> redisTemplateForCount;
+
+  private static final String BEAN_VIEWED_KEY_PREFIX = "bean:viewed:";
+
+  private static final String BEAN_VIEW_COUNT_KEY_PREFIX = "bean:viewCount:";
+
+  private static final String VIEWED_VALUE = "viewed";
+
+  private static final String GUEST = "guest:";
+
+  private static final String HEADER_X_FORWARDED_FOR = "X-Forwarded-For";
+
+  private static final String UNKNOWN_IP = "unknown";
+
   @Transactional
   public void addBean(BeanDto beanDto, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Bean bean = Bean.builder()
-        .member(member)
-        .averageScore(0.0)
-        .beanName(beanDto.getBeanName())
-        .beanState(beanDto.getBeanState())
-        .beanFarm(beanDto.getBeanFarm())
-        .beanRegion(beanDto.getBeanRegion())
-        .beanVariety(beanDto.getBeanVariety())
-        .altitude(beanDto.getAltitude())
-        .process(beanDto.getProcess())
-        .grade(beanDto.getGrade())
-        .roastingLevel(beanDto.getRoastingLevel())
-        .roastingDate(beanDto.getRoastingDate())
-        .cupNote(beanDto.getCupNote())
-        .espressoRecipe(beanDto.getEspressoRecipe())
-        .filterRecipe(beanDto.getFilterRecipe())
-        .milkPairing(beanDto.getMilkPairing())
-        .signatureVariation(beanDto.getSignatureVariation())
-        .price(null)
-        .purchaseStatus(null)
-        .build();
+    Bean bean = Bean.fromDto(member, beanDto);
 
     if (member.getRole() == SELLER) {
       if (beanDto.getPurchaseStatus() == null || beanDto.getPurchaseStatus().toString().isEmpty()) {
@@ -90,20 +94,15 @@ public class BeanService {
     String roasterName = null;
     String purchaseStatus = null;
     String role = null;
+
     if (member.getRoaster() != null) {
       roasterName = member.getRoaster().getRoasterName();
       role = member.getRole().name();
       purchaseStatus = save.getPurchaseStatus().name();
     }
 
-    SearchBeanList searchBeanList = SearchBeanList.builder()
-        .beanId(save.getId())
-        .beanName(save.getBeanName())
-        .averageScore(save.getAverageScore())
-        .roasterName(roasterName)
-        .purchaseStatus(purchaseStatus)
-        .role(role)
-        .build();
+    SearchBeanList searchBeanList = SearchBeanList.fromBeanEntity(
+        save, roasterName, purchaseStatus, role);
 
     searchRepository.save(searchBeanList);
   }
@@ -124,33 +123,137 @@ public class BeanService {
       beanList = beanRepository.findByMemberRoleAndPurchaseStatus(SELLER, POSSIBLE, pageable);
     }
 
-    return beanList.map(bean -> BeanListDto.builder()
-        .beanId(bean.getId())
-        .beanName(bean.getBeanName())
-        .averageScore(bean.getAverageScore())
-        .roasterName(bean.getRoasterName())
-        .build());
+    return beanList.map(BeanListDto::fromEntity);
   }
 
   @Transactional(readOnly = true)
-  public BeanDto getBean(Long id) {
+  public BeanDto getBean(Long id, String token, HttpServletRequest request) {
 
-    Bean bean = beanRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    Bean bean = findByBeanIdFromBeanRepository(id);
+
+    String cacheKey = generateCacheKey(id, token, request);
+
+    if (isFirstTimeToDay(cacheKey)) {
+
+      incrementViewCount(id);
+
+      setViewedToday(cacheKey);
+    }
 
     return BeanDto.fromEntity(bean);
+  }
+
+  private String generateCacheKey(Long beanId, String token, HttpServletRequest request) {
+
+    if (StringUtils.hasText(token)) {
+
+      Member member = getMemberFromToken(token);
+
+      return BEAN_VIEWED_KEY_PREFIX + member.getId() + ":" + beanId;
+
+    } else {
+
+      String ipAddress = getIpAddress(request);
+
+      return BEAN_VIEWED_KEY_PREFIX + GUEST + ipAddress + ":" + beanId;
+    }
+  }
+
+  private String getIpAddress(HttpServletRequest request) {
+
+    String ipAddress = request.getHeader(HEADER_X_FORWARDED_FOR);
+
+    if (ipAddress == null || ipAddress.isEmpty() || UNKNOWN_IP.equalsIgnoreCase(ipAddress)) {
+
+      ipAddress = request.getRemoteAddr();
+    }
+
+    if (ipAddress == null || ipAddress.isEmpty()) {
+
+      ipAddress = UNKNOWN_IP;
+    } else {
+
+      ipAddress = ipAddress.split(",")[0].trim();
+    }
+    return ipAddress;
+  }
+
+  private boolean isFirstTimeToDay(String cacheKey) {
+
+    return Boolean.FALSE.equals(redisTemplateForCount.hasKey(cacheKey));
+  }
+
+  private void incrementViewCount(Long beanId) {
+
+    String viewCountKey = BEAN_VIEW_COUNT_KEY_PREFIX + beanId;
+
+    redisTemplateForCount.opsForValue().increment(viewCountKey, 1);
+
+    long timeUntilMidnight = getTimeUntilMidnight();
+
+    redisTemplateForCount.expire(viewCountKey, timeUntilMidnight, TimeUnit.MILLISECONDS);
+  }
+
+  private void setViewedToday(String cacheKey) {
+
+    long timeUntilMidnight = getTimeUntilMidnight();
+
+    redisTemplateForCount.opsForValue()
+        .set(cacheKey, VIEWED_VALUE, timeUntilMidnight, TimeUnit.MILLISECONDS);
+  }
+
+  private long getTimeUntilMidnight() {
+
+    LocalDateTime now = LocalDateTime.now();
+
+    LocalDateTime midnight = now.toLocalDate().atStartOfDay().plusDays(1);
+
+    return Duration.between(now, midnight).toMillis();
+  }
+
+  @Scheduled(cron = "0 0 0 * * *")
+  @Transactional
+  @Retryable(maxAttempts = 5, backoff = @Backoff(delay = 2000))
+  public void saveDailyViewCountsToDB() {
+
+    Set<String> keys = redisTemplateForCount.keys(BEAN_VIEW_COUNT_KEY_PREFIX + "*");
+
+    if (keys != null) {
+
+      for (String key : keys) {
+
+        Long beanId = Long.valueOf(key.split(":")[2]);
+
+        String dailyViewCountStr = redisTemplateForCount.opsForValue().get(key);
+
+        Integer dailyViewCount =
+            (dailyViewCountStr != null) ? Integer.parseInt(dailyViewCountStr) : 0;
+
+        Bean bean = findByBeanIdFromBeanRepository(beanId);
+
+        SearchBeanList searchBeanList = findByBeanIdFromSearchRepository(beanId);
+
+        long totalViewCount = bean.getViewCount() + dailyViewCount;
+
+        bean.setViewCount(totalViewCount);
+
+        searchBeanList.setViewCount(totalViewCount);
+
+        beanRepository.save(bean);
+
+        searchRepository.save(searchBeanList);
+      }
+    }
   }
 
   @Transactional
   public void updateBean(Long id, BeanUpdateDto beanUpdateDto, String token) {
 
-    Bean bean = beanRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    Bean bean = findByBeanIdFromBeanRepository(id);
 
-    SearchBeanList searchBeanList = searchRepository.findById(bean.getId())
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    SearchBeanList searchBeanList = findByBeanIdFromSearchRepository(id);
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     if (!bean.getMember().getId().equals(member.getId())) {
       throw new CustomException(NOT_PERMISSION);
@@ -238,13 +341,11 @@ public class BeanService {
   @Transactional
   public void deleteBean(Long id, String token) {
 
-    Bean bean = beanRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    Bean bean = findByBeanIdFromBeanRepository(id);
 
-    searchRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    findByBeanIdFromSearchRepository(id);
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     if (!bean.getMember().getId().equals(member.getId())) {
       throw new CustomException(NOT_PERMISSION);
@@ -263,5 +364,20 @@ public class BeanService {
     favoriteRepository.deleteAllByBeanId(beanId);
     reviewRepository.deleteAllByBeanId(beanId);
     beanRepository.deleteById(beanId);
+  }
+
+  private Member getMemberFromToken(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
+  }
+
+  private Bean findByBeanIdFromBeanRepository(Long id) {
+
+    return beanRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+  }
+
+  private SearchBeanList findByBeanIdFromSearchRepository(Long id) {
+
+    return searchRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
   }
 }

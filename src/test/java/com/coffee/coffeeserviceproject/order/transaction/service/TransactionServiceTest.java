@@ -165,8 +165,7 @@ class TransactionServiceTest {
     String token = "token";
 
     TransactionDto transactionDto = TransactionDto.builder()
-        .totalPrice(totalPrice)
-        .merchant_uid("merchant_uid")
+        .merchantUid("merchant_uid")
         .items(List.of(
             Item.builder()
                 .beanId(cart.getBean().getId())
@@ -202,8 +201,7 @@ class TransactionServiceTest {
     String token = "token";
 
     TransactionDto transactionDto = TransactionDto.builder()
-        .totalPrice(totalPrice)
-        .merchant_uid("merchant_uid")
+        .merchantUid("merchant_uid")
         .items(List.of(
             Item.builder()
                 .beanId(cart.getBean().getId())
@@ -246,8 +244,7 @@ class TransactionServiceTest {
     bean.setPurchaseStatus(IMPOSSIBLE);
 
     TransactionDto transactionDto = TransactionDto.builder()
-        .totalPrice(totalPrice)
-        .merchant_uid("merchant_uid")
+        .merchantUid("merchant_uid")
         .items(List.of(
             Item.builder()
                 .beanId(cart.getBean().getId())
@@ -285,8 +282,7 @@ class TransactionServiceTest {
     String token = "token";
 
     TransactionDto transactionDto = TransactionDto.builder()
-        .totalPrice(totalPrice)
-        .merchant_uid("merchant_uid")
+        .merchantUid("merchant_uid")
         .items(List.of(
             Item.builder()
                 .beanId(cart.getBean().getId())

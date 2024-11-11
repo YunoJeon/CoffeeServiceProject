@@ -33,7 +33,7 @@ public class RoasterService {
   @Transactional
   public void addRoaster(String token, RoasterDto roasterDto) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromEmail(token);
 
     if (member.getRole() == SELLER) {
       throw new CustomException(ALREADY_REGISTERED_ROASTER);
@@ -43,15 +43,7 @@ public class RoasterService {
       throw new CustomException(ALREADY_REGISTERED_ROASTER);
     }
 
-    Roaster roaster = Roaster.builder()
-        .roasterName(roasterDto.getRoasterName())
-        .officeAddress(roasterDto.getOfficeAddress())
-        .contactInfo(
-            roasterDto.getContactInfo() == null || roasterDto.getContactInfo().isEmpty()
-                ? member.getPhone() : roasterDto.getContactInfo())
-        .description(roasterDto.getDescription())
-        .member(member)
-        .build();
+    Roaster roaster = Roaster.fromEntity(member, roasterDto);
 
     member.setRole(SELLER);
 
@@ -63,7 +55,7 @@ public class RoasterService {
 
   public void updateRoaster(String token, RoasterUpdateDto roasterUpdateDto) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromEmail(token);
 
     if (!PasswordUtil.matches(roasterUpdateDto.getPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
@@ -90,5 +82,10 @@ public class RoasterService {
     }
 
     roasterRepository.save(roaster);
+  }
+
+  private Member getMemberFromEmail(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
   }
 }

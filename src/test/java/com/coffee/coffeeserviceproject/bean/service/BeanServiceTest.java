@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,8 +31,10 @@ import com.coffee.coffeeserviceproject.favorite.repository.FavoriteRepository;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.coffee.coffeeserviceproject.review.repository.ReviewRepository;
 import com.coffee.coffeeserviceproject.review.service.ReviewService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +44,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 @ExtendWith(MockitoExtension.class)
 class BeanServiceTest {
@@ -62,6 +67,15 @@ class BeanServiceTest {
 
   @Mock
   private FavoriteRepository favoriteRepository;
+
+  @Mock
+  private RedisTemplate<String, String> redisTemplateForCount;
+
+  @Mock
+  private ValueOperations<String, String> valueOperations;
+
+  @Mock
+  private HttpServletRequest request;
 
   @InjectMocks
   private BeanService beanService;
@@ -149,9 +163,15 @@ class BeanServiceTest {
     Bean bean = new Bean();
     bean.setId(1L);
     bean.setMember(member);
+
+    String token = "token";
+
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
     when(beanRepository.findById(anyLong())).thenReturn(Optional.of(bean));
+    when(redisTemplateForCount.hasKey(anyString())).thenReturn(false);
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
     // when
-    BeanDto dto = beanService.getBean(1L);
+    BeanDto dto = beanService.getBean(1L, token, request);
     // then
     assertNotNull(dto);
   }
@@ -160,9 +180,10 @@ class BeanServiceTest {
   void getBean_Failure_NotFoundBean() {
     // given
     when(beanRepository.findById(anyLong())).thenReturn(Optional.empty());
+    String token = "token";
     // when
     CustomException e = assertThrows(CustomException.class,
-        () -> beanService.getBean(1L));
+        () -> beanService.getBean(1L, token, request));
     // then
     assertEquals(NOT_FOUND_BEAN, e.getErrorCode());
   }
@@ -257,5 +278,115 @@ class BeanServiceTest {
     // then
     assertEquals(NOT_PERMISSION, e.getErrorCode());
     verify(reviewRepository, never()).deleteAllByBeanId(bean.getId());
+  }
+
+  @Test
+  void getBean_IncreasesViewCountForMember() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+
+    String token = "token";
+
+    when(jwtProvider.getMemberFromEmail(anyString())).thenReturn(member);
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(redisTemplateForCount.hasKey(anyString())).thenReturn(false);
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
+    // when
+    beanService.getBean(bean.getId(), token, request);
+    // then
+    verify(valueOperations).increment(eq("bean:viewCount:1"), eq(1L));
+  }
+
+  @Test
+  void getBean_IncreasesViewCountForGuest() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(request.getHeader("X-Forwarded-For")).thenReturn("127.0.0.1");
+    when(redisTemplateForCount.hasKey(anyString())).thenReturn(false);
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
+    // when
+    beanService.getBean(bean.getId(), null, request);
+    // then
+    verify(valueOperations).increment(eq("bean:viewCount:1"), eq(1L));
+  }
+
+  @Test
+  void getIpAddress_IpAvailable() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+
+    when(request.getHeader("X-Forwarded-For")).thenReturn("192.168.0.1");
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
+    // when
+    beanService.getBean(bean.getId(), null, request);
+    // then
+    verify(redisTemplateForCount).hasKey("bean:viewed:guest:192.168.0.1:1");
+  }
+
+  @Test
+  void getIpAddress_IpUnavailable() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+
+    when(request.getHeader("X-Forwarded-For")).thenReturn(null);
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
+    // when
+    beanService.getBean(bean.getId(), null, request);
+    // then
+    verify(redisTemplateForCount).hasKey("bean:viewed:guest:unknown:1");
+  }
+
+  @Test
+  void getBean_DoesNotIncreaseViewCountAlreadyViewed() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+
+    String token = "token";
+
+    when(jwtProvider.getMemberFromEmail(token)).thenReturn(member);
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(redisTemplateForCount.hasKey(anyString())).thenReturn(true);
+    // when
+    beanService.getBean(bean.getId(), token, request);
+    // then
+    verify(valueOperations, never()).increment(anyString(), anyLong());
+  }
+
+  @Test
+  void saveDailyViewCountsToDB_UpdateDB() {
+    // given
+    Bean bean = new Bean();
+    bean.setId(1L);
+    bean.setMember(member);
+    bean.setViewCount(100L);
+
+    SearchBeanList searchBeanList = SearchBeanList.builder().beanId(bean.getId()).build();
+
+    String redisKey = "bean:viewCount:1";
+
+    when(redisTemplateForCount.opsForValue()).thenReturn(valueOperations);
+    when(redisTemplateForCount.keys("bean:viewCount:*")).thenReturn(Set.of(redisKey));
+    when(redisTemplateForCount.opsForValue().get(redisKey)).thenReturn("10");
+    when(beanRepository.findById(bean.getId())).thenReturn(Optional.of(bean));
+    when(searchRepository.findById(bean.getId())).thenReturn(Optional.of(searchBeanList));
+    // when
+    beanService.saveDailyViewCountsToDB();
+    // then
+    verify(beanRepository).save(bean);
+    assertEquals(110, bean.getViewCount());
   }
 }

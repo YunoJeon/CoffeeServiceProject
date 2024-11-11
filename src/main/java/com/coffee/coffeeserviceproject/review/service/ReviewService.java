@@ -43,10 +43,9 @@ public class ReviewService {
       throw new CustomException(SCORE_MULTIPLE_05);
     }
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Bean bean = beanRepository.findById(beanId)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+    Bean bean = findByBeanIdFromBeanRepository(beanId);
 
     Review review = Review.fromDto(member, bean, reviewRequestDto);
 
@@ -57,7 +56,7 @@ public class ReviewService {
   @Transactional(readOnly = true)
   public Page<ReviewResponseDto> getMyReviewList(Pageable pageable, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     Long memberId = member.getId();
 
@@ -77,10 +76,9 @@ public class ReviewService {
   @Transactional
   public void updateReview(Long id, String token, String comment) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Review review = reviewRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_REVIEW));
+    Review review = findByReviewIdFromReviewRepository(id);
 
     if (!member.getId().equals(review.getMember().getId())) {
 
@@ -95,10 +93,9 @@ public class ReviewService {
   @Transactional
   public void deleteReview(Long id, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Review review = reviewRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_REVIEW));
+    Review review = findByReviewIdFromReviewRepository(id);
 
     Long beanId = review.getBean().getId();
 
@@ -115,23 +112,42 @@ public class ReviewService {
   public void updateAverageScore(Long beanId) {
 
     List<Review> reviewList = reviewRepository.findAllByBeanId(beanId);
+
     if (!reviewList.isEmpty()) {
       double averageScore = reviewList.stream()
           .mapToDouble(Review::getScore)
           .average()
           .orElse(0.0);
 
-      Bean bean = beanRepository.findById(beanId)
-          .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+      Bean bean = findByBeanIdFromBeanRepository(beanId);
 
       bean.setAverageScore(averageScore);
       beanRepository.save(bean);
 
-      SearchBeanList searchBeanList = searchRepository.findById(beanId)
-          .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+      SearchBeanList searchBeanList = findByBeanIdFromSearchRepository(beanId);
 
       searchBeanList.setAverageScore(averageScore);
       searchRepository.save(searchBeanList);
     }
+  }
+
+  private Member getMemberFromToken(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
+  }
+
+  private Bean findByBeanIdFromBeanRepository(Long id) {
+
+    return beanRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+  }
+
+  private Review findByReviewIdFromReviewRepository(Long id) {
+
+    return reviewRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_REVIEW));
+  }
+
+  private SearchBeanList findByBeanIdFromSearchRepository(Long id) {
+
+    return searchRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
   }
 }

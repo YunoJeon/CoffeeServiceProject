@@ -1,5 +1,8 @@
 package com.coffee.coffeeserviceproject.member.entity;
 
+import static com.coffee.coffeeserviceproject.member.type.RoleType.BUYER;
+
+import com.coffee.coffeeserviceproject.member.dto.MemberDto;
 import com.coffee.coffeeserviceproject.member.type.RoleType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
@@ -68,5 +71,17 @@ public class Member {
 
   public void certify() {
     this.certificationAt = LocalDateTime.now();
+  }
+
+  public static Member fromDto(MemberDto memberDto, String encodedPassword) {
+
+    return Member.builder()
+        .memberName(memberDto.getMemberName())
+        .phone(memberDto.getPhone())
+        .email(memberDto.getEmail())
+        .password(encodedPassword)
+        .address(memberDto.getAddress())
+        .role(BUYER)
+        .build();
   }
 }
