@@ -21,6 +21,7 @@ public class MailService {
   private final JavaMailSender mailSender;
 
   private final MemberRepository memberRepository;
+
   private final JwtProvider jwtProvider;
 
   public void sendEmail(String email) {
@@ -28,6 +29,7 @@ public class MailService {
     Member member = memberRepository.findByEmail(email).orElseThrow(() -> new CustomException(NOT_FOUND_USER));
 
     if (member.getCertificationAt() != null) {
+
       throw new CustomException(ALREADY_VERIFY);
     }
 

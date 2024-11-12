@@ -23,6 +23,7 @@ import static com.coffee.coffeeserviceproject.order.transaction.type.PaymentStat
 import static com.coffee.coffeeserviceproject.order.transaction.type.PaymentStatusType.PAID;
 import static com.coffee.coffeeserviceproject.order.transaction.type.PaymentStatusType.PREPARE;
 import static com.coffee.coffeeserviceproject.order.transaction.type.PaymentStatusType.READY;
+import static java.math.BigDecimal.ZERO;
 
 import com.coffee.coffeeserviceproject.bean.entity.Bean;
 import com.coffee.coffeeserviceproject.bean.repository.BeanRepository;
@@ -73,22 +74,28 @@ public class TransactionService {
   @Transactional
   public void createOrder(TransactionDto transactionDto, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     List<Item> items = new ArrayList<>();
 
     Long firstBeanId = transactionDto.getItems().get(0).getBeanId();
 
-    Long roasterId = beanRepository.findById(firstBeanId)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN)).getRoasterId();
+    Long roasterId = findByBeanIdFromBeanRepository(firstBeanId).getRoasterId();
 
-    Roaster roaster = roasterRepository.findById(roasterId)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_ROASTER));
+    Roaster roaster = findByRoasterIdFromRoasterRepository(roasterId);
+
+    addItemsFromCart(transactionDto, items, roasterId);
+
+    Transaction transaction = Transaction.fromDto(transactionDto, member, roaster, items);
+
+    transactionRepository.save(transaction);
+  }
+
+  private void addItemsFromCart(TransactionDto transactionDto, List<Item> items, Long roasterId) {
 
     for (Item item : transactionDto.getItems()) {
 
-      Bean bean = beanRepository.findById(item.getBeanId())
-          .orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+      Bean bean = findByBeanIdFromBeanRepository(item.getBeanId());
 
       if (bean.getPurchaseStatus() == IMPOSSIBLE) {
         throw new CustomException(NOT_AVAILABLE_PURCHASE, bean.getBeanName());
@@ -100,20 +107,12 @@ public class TransactionService {
 
       Long currentRoasterId = bean.getRoasterId();
 
-      if (!roaster.getId().equals(currentRoasterId)) {
+      if (!roasterId.equals(currentRoasterId)) {
         throw new CustomException(SAME_ROASTER);
       }
 
-      items.add(Item.builder()
-          .beanId(item.getBeanId())
-          .quantity(item.getQuantity())
-          .price(item.getPrice())
-          .build());
+      items.add(Item.of(item));
     }
-
-    Transaction transaction = Transaction.fromDto(transactionDto, member, roaster, items);
-
-    transactionRepository.save(transaction);
   }
 
   @Transactional
@@ -124,8 +123,7 @@ public class TransactionService {
       IamportResponse<Payment> response = iamportClient.paymentByImpUid(impUid);
       Payment payment = response.getResponse();
 
-      Transaction transaction = transactionRepository.findByMerchantUid(payment.getMerchantUid())
-          .orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
+      Transaction transaction = findByMerchantUidFromTransactionRepository(payment.getMerchantUid());
 
       if (!payment.getStatus().equals("paid") || !transaction.getPaymentStatus().equals(READY)) {
 
@@ -135,7 +133,7 @@ public class TransactionService {
       BigDecimal totalAmount = transaction.getItems().stream().map(
               item -> BigDecimal.valueOf(item.getPrice())
                   .multiply(BigDecimal.valueOf(item.getQuantity())))
-          .reduce(BigDecimal.ZERO, BigDecimal::add);
+          .reduce(ZERO, BigDecimal::add);
 
       if (payment.getAmount().compareTo(totalAmount) != 0) {
 
@@ -146,17 +144,22 @@ public class TransactionService {
       transaction.setPaymentStatus(PAID);
       transactionRepository.save(transaction);
 
-      for (Item item : transaction.getItems()) {
-
-        cartRepository.deleteByBeanIdAndMemberId(item.getBeanId(),
-            transaction.getMember().getId());
-      }
+      deleteItemsFromCart(transaction);
 
       return response;
 
     } catch (IamportResponseException | IOException e) {
 
       throw new CustomException(PAYMENT_ERROR);
+    }
+  }
+
+  private void deleteItemsFromCart(Transaction transaction) {
+
+    for (Item item : transaction.getItems()) {
+
+      cartRepository.deleteByBeanIdAndMemberId(item.getBeanId(),
+          transaction.getMember().getId());
     }
   }
 
@@ -168,8 +171,7 @@ public class TransactionService {
       IamportResponse<Payment> response = iamportClient.paymentByImpUid(impUid);
       Payment payment = response.getResponse();
 
-      Transaction transaction = transactionRepository.findByMerchantUid(payment.getMerchantUid())
-          .orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
+      Transaction transaction = findByMerchantUidFromTransactionRepository(payment.getMerchantUid());
 
       if (!payment.getStatus().equals("paid") || !transaction.getPaymentStatus()
           .equals(CANCEL_REQUEST)) {
@@ -201,7 +203,7 @@ public class TransactionService {
   @Transactional(readOnly = true)
   public Page<TransactionBuyerListDto> getBuyerPurchaseList(Pageable pageable, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     Long memberId = member.getId();
 
@@ -217,10 +219,9 @@ public class TransactionService {
 
   public void updateBuyerPurchase(Long id, PaymentStatusType paymentStatus, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
-    Transaction transaction = transactionRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
+    Transaction transaction = findByTransactionIdFromTransactionRepository(id);
 
     if (!member.getId().equals(transaction.getMember().getId())) {
 
@@ -229,7 +230,8 @@ public class TransactionService {
 
     if (paymentStatus == CANCEL_REQUEST) {
 
-      if (transaction.getPaymentStatus() == PAID || transaction.getPaymentStatus() == ORDER_CONFIRMED) {
+      if (transaction.getPaymentStatus() == PAID
+          || transaction.getPaymentStatus() == ORDER_CONFIRMED) {
 
         transaction.setPaymentStatus(CANCEL_REQUEST);
       }
@@ -258,7 +260,7 @@ public class TransactionService {
   @Transactional(readOnly = true)
   public Page<TransactionSellerListDto> getSellerPurchaseList(Pageable pageable, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     if (member.getRole() != SELLER) {
 
@@ -279,15 +281,14 @@ public class TransactionService {
 
   public void updateSellerPurchase(Long id, PaymentStatusType paymentStatus, String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberFromToken(token);
 
     if (member.getRole() != SELLER) {
 
       throw new CustomException(NOT_PERMISSION);
     }
 
-    Transaction transaction = transactionRepository.findById(id)
-        .orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
+    Transaction transaction = findByTransactionIdFromTransactionRepository(id);
 
     if (!member.getRoaster().getId().equals(transaction.getRoaster().getId())) {
 
@@ -320,5 +321,31 @@ public class TransactionService {
     }
 
     transactionRepository.save(transaction);
+  }
+
+  private Member getMemberFromToken(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
+  }
+
+  private Bean findByBeanIdFromBeanRepository(Long id) {
+
+    return beanRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_BEAN));
+  }
+
+  private Roaster findByRoasterIdFromRoasterRepository(Long id) {
+
+    return roasterRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_ROASTER));
+  }
+
+  private Transaction findByMerchantUidFromTransactionRepository(String id) {
+
+    return transactionRepository.findByMerchantUid(id)
+        .orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
+  }
+
+  private Transaction findByTransactionIdFromTransactionRepository(Long id) {
+
+    return transactionRepository.findById(id).orElseThrow(() -> new CustomException(NOT_FOUND_ORDER));
   }
 }

@@ -78,7 +78,7 @@ public class Transaction {
         .roaster(roaster)
         .paymentStatus(READY)
         .items(items)
-        .merchantUid(transactionDto.getMerchant_uid())
+        .merchantUid(transactionDto.getMerchantUid())
         .paymentMethod(transactionDto.getPaymentMethod())
         .build();
   }

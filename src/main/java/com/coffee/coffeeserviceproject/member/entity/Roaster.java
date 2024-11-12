@@ -1,5 +1,6 @@
 package com.coffee.coffeeserviceproject.member.entity;
 
+import com.coffee.coffeeserviceproject.member.dto.RoasterDto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
 import jakarta.persistence.Entity;
@@ -53,5 +54,18 @@ public class Roaster {
   @PreUpdate
   public void onUpdate() {
     this.updatedAt = LocalDateTime.now();
+  }
+
+  public static Roaster fromEntity(Member member, RoasterDto roasterDto) {
+
+    return Roaster.builder()
+        .roasterName(roasterDto.getRoasterName())
+        .officeAddress(roasterDto.getOfficeAddress())
+        .contactInfo(
+            roasterDto.getContactInfo() == null || roasterDto.getContactInfo().isEmpty()
+                ? member.getPhone() : roasterDto.getContactInfo())
+        .description(roasterDto.getDescription())
+        .member(member)
+        .build();
   }
 }

@@ -1,5 +1,6 @@
 package com.coffee.coffeeserviceproject.bean.entity;
 
+import com.coffee.coffeeserviceproject.bean.dto.BeanDto;
 import com.coffee.coffeeserviceproject.bean.type.PurchaseStatus;
 import com.coffee.coffeeserviceproject.member.entity.Member;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -62,6 +63,8 @@ public class Bean {
   @JsonFormat(shape = Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
   private LocalDateTime updatedAt;
 
+  private Long viewCount;
+
   @PrePersist
   public void onCreate() {
     this.createdAt = LocalDateTime.now();
@@ -84,5 +87,32 @@ public class Bean {
       return member.getRoaster().getId();
     }
     return null;
+  }
+
+  public static Bean fromDto (Member member, BeanDto beanDto) {
+
+    return Bean.builder()
+        .member(member)
+        .averageScore(0.0)
+        .viewCount(0L)
+        .beanName(beanDto.getBeanName())
+        .beanState(beanDto.getBeanState())
+        .beanFarm(beanDto.getBeanFarm())
+        .beanRegion(beanDto.getBeanRegion())
+        .beanVariety(beanDto.getBeanVariety())
+        .altitude(beanDto.getAltitude())
+        .process(beanDto.getProcess())
+        .grade(beanDto.getGrade())
+        .roastingLevel(beanDto.getRoastingLevel())
+        .roastingDate(beanDto.getRoastingDate())
+        .cupNote(beanDto.getCupNote())
+        .espressoRecipe(beanDto.getEspressoRecipe())
+        .filterRecipe(beanDto.getFilterRecipe())
+        .milkPairing(beanDto.getMilkPairing())
+        .signatureVariation(beanDto.getSignatureVariation())
+        .signatureVariation(beanDto.getSignatureVariation())
+        .price(null)
+        .purchaseStatus(null)
+        .build();
   }
 }

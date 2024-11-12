@@ -46,11 +46,16 @@ public class SearchService {
     List<Bean> beanList = beanRepository.findAllByMemberId(memberId);
 
     for (Bean bean : beanList) {
-      SearchBeanList searchBeanList = searchRepository.findById(bean.getId())
-          .orElseThrow(() -> new CustomException(ROASTER_REGISTRATION_FAILED));
+      SearchBeanList searchBeanList = findByBeanIdFromSearchRepository(bean.getId());
 
       searchBeanList.setRoasterName(roasterName);
       searchRepository.save(searchBeanList);
     }
+  }
+
+  private SearchBeanList findByBeanIdFromSearchRepository(Long id) {
+
+    return searchRepository.findById(id)
+        .orElseThrow(() -> new CustomException(ROASTER_REGISTRATION_FAILED));
   }
 }

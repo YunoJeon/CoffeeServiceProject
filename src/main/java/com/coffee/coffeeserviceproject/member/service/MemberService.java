@@ -3,7 +3,6 @@ package com.coffee.coffeeserviceproject.member.service;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.ALREADY_EXISTS_USER;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.LOGIN_ERROR;
 import static com.coffee.coffeeserviceproject.common.type.ErrorCode.WRONG_PASSWORD;
-import static com.coffee.coffeeserviceproject.member.type.RoleType.BUYER;
 import static com.coffee.coffeeserviceproject.member.type.RoleType.SELLER;
 
 import com.coffee.coffeeserviceproject.bean.entity.Bean;
@@ -61,14 +60,7 @@ public class MemberService {
 
     String encodePassword = PasswordUtil.hashPassword(memberDto.getPassword());
 
-    Member member = Member.builder()
-        .memberName(memberDto.getMemberName())
-        .phone(memberDto.getPhone())
-        .email(memberDto.getEmail())
-        .password(encodePassword)
-        .address(memberDto.getAddress())
-        .role(BUYER)
-        .build();
+    Member member = Member.fromDto(memberDto, encodePassword);
 
     memberRepository.save(member);
 
@@ -91,24 +83,17 @@ public class MemberService {
   @Transactional(readOnly = true)
   public MemberDto getMember(String token) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberByEmail(token);
 
-    MemberDto memberDto = MemberDto.builder()
-        .memberName(member.getMemberName())
-        .phone(member.getPhone())
-        .email(member.getEmail())
-        .address(member.getAddress())
-        .build();
+    MemberDto memberDto = MemberDto.fromEntity(member);
 
     if (member.getRole() == SELLER) {
+
       Roaster roaster = member.getRoaster();
+
       if (roaster != null) {
-        RoasterDto roasterDto = RoasterDto.builder()
-            .roasterName(roaster.getRoasterName())
-            .officeAddress(roaster.getOfficeAddress())
-            .contactInfo(roaster.getContactInfo())
-            .description(roaster.getDescription())
-            .build();
+
+        RoasterDto roasterDto = RoasterDto.fromEntity(roaster);
 
         memberDto.setRoasterDto(roasterDto);
       }
@@ -120,7 +105,7 @@ public class MemberService {
   @Transactional
   public void updateMember(String token, MemberUpdateDto memberUpdateDto) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberByEmail(token);
 
     if (!PasswordUtil.matches(memberUpdateDto.getCurrentPassword(), member.getPassword())) {
       throw new CustomException(WRONG_PASSWORD);
@@ -159,7 +144,7 @@ public class MemberService {
   @Transactional
   public void deleteMember(String token, MemberDeleteDto memberDeleteDto) {
 
-    Member member = jwtProvider.getMemberFromEmail(token);
+    Member member = getMemberByEmail(token);
 
     Long memberId = member.getId();
 
@@ -213,5 +198,10 @@ public class MemberService {
     reviewRepository.deleteAllByMemberId(memberId);
     favoriteRepository.deleteAllByMemberId(memberId);
     memberRepository.deleteById(memberId);
+  }
+
+  private Member getMemberByEmail(String token) {
+
+    return jwtProvider.getMemberFromEmail(token);
   }
 }
