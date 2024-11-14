@@ -8,7 +8,7 @@
 
 ## 기술 스택
 
-- Backend : `Java`, `Spring Boot`, `Spring Data JPA`
+- Backend : `Java`, `Spring Boot`, `Spring Data JPA`, `Swagger`
 - Database : `MySQL`
 - Cache : `Redis`
 - API : `REST API`
