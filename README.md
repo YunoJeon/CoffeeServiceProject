@@ -8,10 +8,12 @@
 
 ## 기술 스택
 
-- Backend : Java, Spring Boot
-- Database : MySQL
-- API : REST API
-- Search Engine : ElasticSearch
+- Backend : `Java`, `Spring Boot`, `Spring Data JPA`
+- Database : `MySQL`
+- Cache : `Redis`
+- API : `REST API`
+- Search Engine : `ElasticSearch`
+- Infra : `Docker`, `AWS(EC2)`, `Smtp`
 
 ---
 
@@ -94,7 +96,8 @@
 
 ## 데이터베이스 설계 (ERD)
 
-![coffee_service-3](https://github.com/user-attachments/assets/de9a653b-8566-41aa-a4df-0098834d6eb9)
+![coffee_service-4](https://github.com/user-attachments/assets/c2025be2-4933-4721-a923-28d78575e68c)
+
 
 ---
 
@@ -102,35 +105,52 @@
 [회원]
 
 - 회원가입 : POST /members
+- 메일발송 : GET /verification
 - 로그인 : POST /members/login (토큰발행)
-- 회원조회 : GET /members/{email} (토큰필요)
-- 회원수정 : PATCH /members/{email} (토큰필요)
-- 회원탈퇴 : DELETE /members/{email} (토큰필요)
-- 즐겨찾기조회 : GET /members/{email}/favorites (토큰필요, 등록한 본인인지 확인)
-- 즐겨찾기삭제 : DELETE /members/favorites/{favoriteId} (토큰필요, 등록한 본인인지 확인)
-- 로스터등록 : POST /members/{email}/roasters (토큰필요)
-- 로스터수정 : PATCH /members/{email}/roasters (토큰필요, 등록한 본인인지 확인)
-- 구매목록조회 : GET /members/{email}/purchases (토큰필요, 구매한 본인인지 확인)
+- 회원조회 : GET /members/info (토큰필요)
+- 회원수정 : PATCH /members/me (토큰필요)
+- 회원탈퇴 : DELETE /members/cancel-membership (토큰필요)
+- 로스터등록 : POST /members/roaster/add-roaster (토큰필요)
+- 로스터수정 : PATCH /members/roaster/me (토큰필요, 등록한 본인인지 확인)
+
 
 [원두]
 
 - 원두등록 : POST /beans (토큰필요)
-- 원두조회 : GET /beans/{id}
+- 원두목록 : GET /beans?page={페이지번호}&size={페이지당 결과 갯수&role={회원유형}&purchaseStatus={구매가능여부}
+- 원두조회 : GET /beans/{id}/info
+- 원두검색 : GET /search?query={검색어}&page={페이지번호&size={페이지당 결과 갯수}&role={회원유형}&purchaseStatus={구가능여부}
 - 원두수정 : PATCH /beans/{id} (토큰필요, 등록한 본인인지 확인)
 - 원두삭제 : DELETE /beans/{id} (토큰필요, 등록한 본인인지 확인)
-- 원두공유 : GET /beans/{id}/share
-- 즐겨찾기등록 : POST /beans/{id}/favorites (토큰필요)
+- 원두공유 : POST /beans/{id}/share
 
 [리뷰]
 
-- 리뷰등록 : POST /reviews (토큰필요)
+- 리뷰등록 : POST /reviews/{beanId} (토큰필요)
+- 나의 리뷰조회 : GET /reviews/members/me (토큰필요)
+- 원두 리뷰조회 : GET /reviews/beans/{beanId}
 - 리뷰수정 : PATCH /reviews/{id} (토큰필요, 등록한 본인인지 확인)
 - 리뷰삭제 : DELETE /reviews/{id} (토큰필요, 등록한 본인인지 확인)
 
 [원두구매-장바구니]
 
-- 장바구니담기 : POST /carts (토큰필요)
-- 장바구니조회 : GET /carts/{id} (토큰필요, 등록한 본인인지 확인)
-- 갯수수정 : PUT /carts/{id} (토큰필요, 등록한 본인인지 확인)
+- 장바구니담기 : POST /carts/{beanId} (토큰필요)
+- 장바구니조회 : GET /carts (토큰필요, 등록한 본인인지 확인)
+- 장바구니수정 : PATCH /carts/{id} (토큰필요, 등록한 본인인지 확인)
 - 장바구니삭제 : DELETE /carts/{id} (토큰필요, 등록한 본인인지 확인)
-- 결제진행 : POST /carts/{id}/checkout (토큰필요, 등록한 본인인지 확인)
+
+[결제]
+
+- 주문서등록 : POST /order (토큰필요)
+- 주문서검증 및 결제진행 : POST /order/verification/{imp_uid}
+- 결제취소 : POST /order/cancel/{imp_uid}
+- 구매목록조회 : GET /order/buyer/purchases?&page={페이지번호&size={페이지당 결과 갯수} (토큰필요, 구매한 본인인지 확인)
+- 구매상태변경 : PATCH /order/buyer/purchases/{id}/paymentStatus={변경할 상태}
+- 판매목록조회 : GET /order/seller/purchases?&page={페이지번호&size={페이지당 결과 갯수} (토큰필요, 판매한 본인인지 확인)
+- 판매상태변경 : PATCH /order/seller/purchases/{id}/?paymentStatus={변경할 상태}
+	
+[즐겨찾기]
+
+- 즐겨찾기등록 : POST /favorites/beans/{beanId} (토큰필요)
+- 즐겨찾기조회 : GET /favorites/members/{memberId} (토큰필요, 등록한 본인인지 확인)
+- 즐겨찾기삭제 : DELETE /members/favorites/{favoriteId} (토큰필요, 등록한 본인인지 확인)
